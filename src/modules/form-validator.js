@@ -8,8 +8,6 @@ export class FormValidator {
     /* Liste des champs (inputs) du formulaire */
     inputs = []
 
-    // liste des champs à valider
-    fieldsToValidate = []
 
     /* Langue des erreurs à injecter dans la vue  */
     lang
@@ -62,7 +60,6 @@ export class FormValidator {
             if(this.data[input] === undefined){
                 console.error(`l'imput name: [${input}] n'existe pas`)
             }else{
-                this.fieldsToValidate.push(input)
                 const rules = dataAndRules[input].split('|')
                 this.rulesValidator(input, rules)
             }
@@ -134,33 +131,25 @@ export class FormValidator {
      * @returns {HTMLElement} Modifie HTML (erreurs)
      */
     setErrors() {
-        /*  for in fieldsToValidate
-            if !Object.keys(this.errors).includes(fieldsToValidate)
+        /*  for in this.data
+            if (this.errors[current]) === unddefined 
+                Suppression de l'erreur
+            else 
                 ajout is-invalid à l'input
                 création span data-id = input.datasetname
-            else 
-                Suppression de l'erreur
                  
         */
-       /*console.log(`this.fieldsToValidate : `, this.fieldsToValidate)*/
-         for (const key in this.fieldsToValidate) {
-            if (Object.hasOwnProperty.call(this.fieldsToValidate, key)) {
-                
-                const errorKey = this.fieldsToValidate[key];
-                const input = this.getInput(errorKey)
-
-                if (this.errors != null || this.errors != undefined) {
-                    if (Object.keys(this.errors).includes(errorKey)) {
-                        this.setHtmlError(input, this.errors[errorKey])
-                    } else {
-                        this.removeHtmlError(input)
-                    }
+        for(const input in this.data) {
+            console.log(input)
+            const current = this.getInput(input)
+            if(this.errors === undefined || this.errors[input] === undefined){
+                this.removeHtmlError(current)
+            }else{
+                if(Object.values(this.errors[input]).length > 0){
+                    this.setHtmlError(current, Object.values(this.errors[input])[0])
                 }
-
-            } else {
-                throw Error(`Il semble que l'imput name: [${key}] ne corrsponde pas !`)
             }
-        } 
+        }
     }
 
     /**
@@ -215,31 +204,6 @@ export class FormValidator {
         
     }
 
-    /**
-     * Supprime une entrée d'un tableau lorsque elle ne doit plus être vérifiée.
-     * 
-     * @param {HTMLDataElement} attrName - attribut name of the html element
-     */
-    splice(attrName){
-
-        if(!this.errors.hasOwnProperty(attrName)){
-            return false
-        }
-
-        let index = this.fieldsToValidate.indexOf(attrName)
-
-        if(index != -1){
-
-            const input = this.getInput(attrName)
-
-            this.fieldsToValidate.splice(index)
-
-            this.removeHtmlError(input)
-        }
-
-    }
-
-
 
     /**
      * @param  {string} name - nom de l'attribut de l'imput
@@ -252,14 +216,12 @@ export class FormValidator {
             
             if(currentInput === 'select'){
 
-                this.addError(name, this.textError("select", {name : name}))
+                this.setError(name, "required", this.textError("select", {name : name}))
             } else {
 
-                this.addError(name, this.textError('empty', {}))
+                this.setError(name, "required", this.textError('empty', {}))
             }
 
-        }else {
-            this.splice(name)
         }
     }
 
@@ -268,11 +230,8 @@ export class FormValidator {
      * @returns {Object} - Erreur email invalide
     */
     email(name) {
-        debugger
         if (!(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/).test(this.data[name])) {
-            this.addError(name, this.textError('email', {}))
-        }else {
-            this.splice(name)
+            this.setError(name, "email", this.textError('email', {}))
         }
     }
 
@@ -283,9 +242,7 @@ export class FormValidator {
     */
     min(name, min) {
         if (this.data[name].trim().length < min) {
-            this.addError(name, this.textError('min', { min: min }))
-        }else {
-            this.splice(name)
+            this.setError(name, "min", this.textError('min', { min: min }))
         }
     }
 
@@ -297,21 +254,26 @@ export class FormValidator {
     max(name, max) {
         if (this.data[name].trim().length > max) {
             console.log(name)
-            this.addError(name, this.textError('max', { max: max }))
-        }else {
-            this.splice(name)
+            this.setError(name, "max", this.textError('max', { max: max }))
         }
     }
 
     /**
+     * Ajoute une erreur à l'objet this.errors
+     * 
      * @param {string} name - nom de l'attribut de l'imput 
+     * @param {string} type - type de l'erreur à ajouter - required|min|max|email etc..
      * @param {string} error - texte de l'erreure 
+
      */
-    addError(name, error) {
+    setError(name, type, error) {
         this.#FormValidatordebug ? console.log(`addError - name : ${name} | error : ${error}`) : null
-        this.errors === undefined ? this.errors = {} :  null
-        this.fieldsToValidate.includes(name) === false ? this.fieldsToValidate.push(name) : null
-        this.errors[name] === undefined ? this.errors[name] = error : null
+        this.errors === undefined ? this.errors = new Object :  null
+
+        this.errors[name] === undefined ? this.errors[name] = new Object : null
+
+        this.errors[name][type] = error
+
     }
 
 

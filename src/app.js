@@ -4,12 +4,12 @@ document.querySelector('#form-id').addEventListener('submit', (e) => {
 
     e.preventDefault()
 
-    const validator = new FormValidator(e)
+    const validator = new FormValidator(e, 'en')
 
     validator.validate({
-       /*  firstName : "required",
+       firstName : "required",
         lastName :  "required",
-        email :     'required|email', */
+        email :     'required|email',
         textarea :  'required|min:2|max:5'
     })
 
