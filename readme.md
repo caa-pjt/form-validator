@@ -1,0 +1,2 @@
+# Vanilla JS - form validator
+
