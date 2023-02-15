@@ -1,17 +1,21 @@
 import { FormValidator } from "./modules/form-validator.js";
 
-document.querySelector('#form-id').addEventListener('submit', (e) => {
+document.querySelector('#form-id').addEventListener('submit', (event) => {
 
-    e.preventDefault()
+    event.preventDefault()
 
-    const validator = new FormValidator(e, 'en')
-
-    validator.validate({
-       firstName : "required",
-        lastName :  "required",
-        email :     'required|email',
-        textarea :  'required|min:2|max:5'
+    const validator = new FormValidator({
+        form : event,
+        validationRules : {
+            firstName : "required",
+            lastName :  "required",
+            email :     'required|email',
+            textarea :  'required|min:2|max:5'
+        },
+        
+        local : "en"
     })
+
 
     if(!validator.isValide()){
         validator.setErrors()

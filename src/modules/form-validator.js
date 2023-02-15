@@ -1,60 +1,87 @@
+/**
+ * @fileOverview Validates a form and returns: List of errors in JSON format || Validation errors directly below fields not validated
+ * @author Carlos Antunes
+ * @version 1.0.0
+ */
+
 export class FormValidator {
 
     #FormValidatordebug = false
 
-    /* Form */
-    form = []
-
-    /* Liste des champs (inputs) du formulaire */
+    /* List of fields (inputs) in the form */
     inputs = []
 
-
-    /* Langue des erreurs à injecter dans la vue  */
-    lang
-
     /**
-     * Validation de formulaires
-     * @param {HTMLFormControlsCollection} form - formulaire envoyé par l'évenement
-     * @param {string} lang - Langue des erreurs en deux caractères ex : en|fr|pt
-    */
-    constructor(form, lang = 'fr') {
-
-        this.form = form
-        this.lang = lang
-
-        this.formData()
-
+     * Default options
+     */
+    options = {
+        form : [],
+        local : "fr"
     }
 
-    /**
-     * Création de l'objet form data
-     * @returns {object[]|error} - renvoie une exception si aucune donée n'est récupèrée
-     */
-    formData() {
-        if (this.form.target != undefined) {
-            const formData = Object.fromEntries(new FormData(this.form.target).entries())
-            this.data = formData
+   /**
+    * @param {object} - Options
+    * @property {SubmitEvent} form - form : event (form sent by the event)
+    * @property {Object} validationRules - validationRules : { attrInputName : rules separator pipe (|) }
+    *                                    - Example: {'email' : 'required|email','textarea' : 'required|min:10|max:255'}
+    * 
+    * @property {string|undefined} local - local : "en" 
+    *                                    - (two digites lowercase. Default value "fr")
+    */
+    constructor(options = {}) {
 
-            /**
-             * Tableau des champs contenus dans le formulaire
-            */
-            for (let i = 0; i < this.form.currentTarget.length; i++) {
-                this.inputs.push(this.form.currentTarget[i])
-            }
+        
+        this.options = Object.assign({}, this.options, options)
+
+        this.formData()
+        
+    }
+    
+    /**
+     * Create formData Objet
+     * 
+     * @returns {object[]|error} - throws an error if no data is retrieved
+    */
+   formData() {
+             
+       if (this.options.form.length === 0 || this.options.form.target != undefined) {
+           const formData = Object.fromEntries(new FormData(this.options.form.target).entries())
+           this.data = formData
+
+           if(this.options.form.currentTarget.length === 0){
+                console.error(`No FormData imputs detected !? 
+                                Please send the form with imputs on the objet options.form`)
+           }else{
+
+                /**
+                 * Array[] 
+                 * Add data imputs in form to the this.inputs variable
+                */
+                for (let i = 0; i < this.options.form.currentTarget.length; i++) {
+                    this.inputs.push(this.options.form.currentTarget[i])
+                }
+
+
+                this.validate()
+           }
 
         } else {
-            throw new Error(`Aucun imput trouvé dans le formulaire !`)
+            console.error(`The objet options.form is empty or undefined. Please insert values in the objetc.`)
         }
     }
 
     /**
-     * Ajoute une erreur selon les règles de validation
-     * @param {object[]} dataAndRules                   - Objet contenant les les champs ainsi que les règles de validation
-     * @property {string<inputAttrName>} object.name    - nom de l'attribut name de l'imput 
-     * @property {string} rules                         - règles de validation séparées par Séparateur pipe |
-     *  - exemple: {'email' : 'required|email','textarea' : 'required|min:10|max:255'}
+     * Add an error according to the validation rules
+     * 
+     * @property {object[]} dataAndRules                - Object containing the list of fields and validation rules
+     * @property {string<inputAttrName>} object.name    - Name of the name attribute of the input 
+     * @property {string} rules                         - Validation rules separated by separator pipe (|)
+     *  - Example: {'email' : 'required|email','textarea' : 'required|min:10|max:255'}
      */
-    validate(dataAndRules) {
+    validate() {
+
+        const dataAndRules = this.options.validationRules
+
         for (const input in dataAndRules) {
 
             if(this.data[input] === undefined){
@@ -67,10 +94,10 @@ export class FormValidator {
     }
 
     /**
-     * Reçois le nom de l'imput à valider et appel la fonction selon les règles de validation
+     * Receive the name of the input to validate and call the function according to the validation rules
      * 
-     * @param {string} input - nom de l'attibut de l'imput
-     * @param {string} rules - règle de validation, fonction à appeler
+     * @param {string} input - Input attribute name
+     * @param {string} rules - Validation rule and function to call
      */
     rulesValidator(input, rules) {
 
@@ -98,8 +125,8 @@ export class FormValidator {
 
     /**
      * 
-     * @param {string} AttrName - nom de l'attribut de l'imput
-     * @returns {HTMLHtmlElement}
+     * @param {string} AttrName     - Input attribute name
+     * @returns {HTMLHtmlElement}   - Input
      */
     getInput(AttrName){
         return this.inputs.find(input => input.getAttribute('name') == AttrName )
@@ -107,7 +134,7 @@ export class FormValidator {
 
     /**
      * 
-     * @returns - erreurs au format json
+     * @returns - errors in JSON format
      */
     getErrors() {
         return this.errors
@@ -115,7 +142,7 @@ export class FormValidator {
 
     /**
      * 
-     * @returns - Si empty erreur return true
+     * @returns - If empty errors return true
     */
     isValide() {
         if (this.errors != null || this.errors != undefined) {
@@ -128,15 +155,17 @@ export class FormValidator {
 
 
     /**
-     * @returns {HTMLElement} Modifie HTML (erreurs)
+     * Add or remove errors from the HTML form (dispatcher)
+     * 
+     * @returns {HTMLElement} Modify HTML (errors)
      */
     setErrors() {
         /*  for in this.data
             if (this.errors[current]) === unddefined 
-                Suppression de l'erreur
+                Remove error
             else 
-                ajout is-invalid à l'input
-                création span data-id = input.datasetname
+                Add is-invalid to the input
+                create span data-id = input.datasetname
                  
         */
         for(const input in this.data) {
@@ -154,8 +183,8 @@ export class FormValidator {
 
     /**
      * 
-     * @param {HTMLElement} input  - Imput HTML
-     * @param {string} error - texte de l'erreur
+     * @param {HTMLElement} input  - Input HTML
+     * @param {string} error - Error text
      */
     setHtmlError(input, error) {
 
@@ -170,12 +199,12 @@ export class FormValidator {
         input.classList.contains('was-validated') ? input.classList.remove('was-validated') : null
         input.classList.contains('is-invalid') ? null : input.classList.add('is-invalid')
 
-        if (input.nextElementSibling.tagName != 'SPAN') {
-
-            const span = document.createElement('span')
-            span.dataset.inputName = input.getAttribute('name')
-            span.classList.add('help-block')
-            span.innerText = error
+        if (input.nextElementSibling === null) {
+            const span = this.#htmlErro(input, error)
+            input.parentElement.appendChild(span)
+            
+        }else if (input.nextElementSibling.tagName != 'SPAN'){
+            const span = this.#htmlErro(input, error)
             input.nextSibling.before(span)
         }
 
@@ -190,7 +219,22 @@ export class FormValidator {
 
     /**
      * 
-     * @param {HTMLElement} input  - Imput HTML  
+     * @param {HTMLElement} input 
+     * @param {string} meassage 
+     * @returns - <span data-input-name="{input.attr.name}" class="help-block">{meassage}</span>
+     */
+    #htmlErro(input, meassage){
+        const span = document.createElement('span')
+        span.dataset.inputName = input.getAttribute('name')
+        span.classList.add('help-block')
+        span.innerText = meassage
+
+        return span
+    }
+
+    /**
+     * 
+     * @param {HTMLElement} input  - Input HTML  
      */
     removeHtmlError(input) {
        
@@ -204,6 +248,11 @@ export class FormValidator {
         
     }
 
+    /* ========================================
+
+            VALIDATION RULES (FUNCTIONS)
+
+    ========================================== */
 
     /**
      * @param  {string} name - nom de l'attribut de l'imput
@@ -277,6 +326,12 @@ export class FormValidator {
     }
 
 
+    /* ========================================
+
+                    LOCALES
+
+    ========================================== */
+
     /**
      * @param {string} type - nom de l'imput 
      * @param {Object} options - tableau d'options valeur à envoyer à la vue exemple : min|max|betewen
@@ -304,11 +359,11 @@ export class FormValidator {
                 select: `Please select a valid ${options.name}`
             }
         }
-        if(locales[this.lang][type] === undefined){
-            console.error(`Aucun texte ${this.lang} n'a été trouver pour l'erreur ${type}`)
-            return locales[this.lang][undefined]
+        if(locales[this.options.local][type] === undefined){
+            console.error(`Aucun texte ${this.options.local} n'a été trouver pour l'erreur ${type}`)
+            return locales[this.options.local][undefined]
         }
-        return locales[this.lang][type]
+        return locales[this.options.local][type]
     }
 
 }

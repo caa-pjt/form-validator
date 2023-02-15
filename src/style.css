@@ -42,7 +42,7 @@ h1{
 
 
 
-/* Resolve input color in Google Chrome */
+/* Resolve input bg-color in Google Chrome */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -174,7 +174,6 @@ select.is-invalid, select.was-validated{
     color: var(--red);
     font-size: 80%;
     text-align: start;
-    /* margin-top: 0.25rem; */
 }
 
 .was-validated, .validated {
