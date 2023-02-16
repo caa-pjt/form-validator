@@ -1,13 +1,14 @@
 import { FormValidator } from "./modules/form-validator.js";
 
-document.querySelector('#form-id').addEventListener('submit', (event) => {
+document.querySelector('#form-id')
+    .addEventListener('submit', (event) => {
 
     event.preventDefault()
 
     const validator = new FormValidator({
         form : event,
         validationRules : {
-            firstName : "required",
+            firstName : "required|match:/^[A-z]{1}[a-z]+$/",
             lastName :  "required",
             email :     'required|email',
             textarea :  'required|min:2|max:5'
@@ -19,8 +20,18 @@ document.querySelector('#form-id').addEventListener('submit', (event) => {
 
     if(!validator.isValide()){
         validator.setErrors()
+        const errors = validator.getErrors()
+        console.log(errors)
+    }else{
 
-        console.log(validator.getErrors())
+        /* 
+            If empty of errors
+                send data to server
+        */
+        const data = validator.getData()
+        console.log(data)
+        console.log(JSON.stringify(data))
+        // await fetch(.....)
     }
 
 })

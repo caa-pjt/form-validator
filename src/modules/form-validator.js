@@ -16,24 +16,23 @@ export class FormValidator {
      */
     options = {
         form : [],
-        local : "fr"
+        local : "en"
     }
 
    /**
     * @param {object} - Options
-    * @property {SubmitEvent} form - form : event (form sent by the event)
-    * @property {Object} validationRules - validationRules : { attrInputName : rules separator pipe (|) }
-    *                                    - Example: {'email' : 'required|email','textarea' : 'required|min:10|max:255'}
-    * 
-    * @property {string|undefined} local - local : "en" 
-    *                                    - (two digites lowercase. Default value "fr")
+    * @property {SubmitEvent} options.form          - form : event (form sent by the event)
+    * @property {Object} options.validationRules    - validationRules : { attrInputName : rules separator pipe (|) }
+    *                                               - Example: {'email' : 'required|email','textarea' : 'required|min:10|max:255'}
+    * @property {string|undefined} options.local    - local : "en" 
+    *                                               - (two digites lowercase. Default value "en")
     */
     constructor(options = {}) {
 
         
         this.options = Object.assign({}, this.options, options)
 
-        this.formData()
+        this.#formData()
         
     }
     
@@ -42,7 +41,7 @@ export class FormValidator {
      * 
      * @returns {object[]|error} - throws an error if no data is retrieved
     */
-   formData() {
+    #formData() {
              
        if (this.options.form.length === 0 || this.options.form.target != undefined) {
            const formData = Object.fromEntries(new FormData(this.options.form.target).entries())
@@ -62,7 +61,7 @@ export class FormValidator {
                 }
 
 
-                this.validate()
+                this.#validate()
            }
 
         } else {
@@ -78,7 +77,7 @@ export class FormValidator {
      * @property {string} rules                         - Validation rules separated by separator pipe (|)
      *  - Example: {'email' : 'required|email','textarea' : 'required|min:10|max:255'}
      */
-    validate() {
+    #validate() {
 
         const dataAndRules = this.options.validationRules
 
@@ -88,7 +87,7 @@ export class FormValidator {
                 console.error(`l'imput name: [${input}] n'existe pas`)
             }else{
                 const rules = dataAndRules[input].split('|')
-                this.rulesValidator(input, rules)
+                this.#rulesValidator(input, rules)
             }
         }
     }
@@ -99,21 +98,21 @@ export class FormValidator {
      * @param {string} input - Input attribute name
      * @param {string} rules - Validation rule and function to call
      */
-    rulesValidator(input, rules) {
+    #rulesValidator(input, rules) {
 
         for (let i = 0; i < rules.length; i++) {
 
             let rule = rules[i].split(':')
             if (rule.length > 1) {
-
+                
                 const func = rule[0]
-                const param = parseInt(rule[1])
-
-                try {
+                const param = rule[1]
+                this[func](input, param)
+                /* try {
                     this[func](input, param)
                 }catch (e){
                     console.error(`(${func}) ${e.name} : ${e.message}`)
-                }
+                } */
             } else {
                 this[rule](input)
             }
@@ -128,7 +127,7 @@ export class FormValidator {
      * @param {string} AttrName     - Input attribute name
      * @returns {HTMLHtmlElement}   - Input
      */
-    getInput(AttrName){
+    #getInput(AttrName){
         return this.inputs.find(input => input.getAttribute('name') == AttrName )
     }
 
@@ -148,9 +147,15 @@ export class FormValidator {
         if (this.errors != null || this.errors != undefined) {
             return false
         } else {
-            this.setErrors()
             return true
         }
+    }
+
+    /**
+     * @returns - validated data [object format]
+    */
+    getData(){
+        return this.data
     }
 
 
@@ -169,13 +174,15 @@ export class FormValidator {
                  
         */
         for(const input in this.data) {
-            console.log(input)
-            const current = this.getInput(input)
+            if (this.#FormValidatordebug) {
+                console.log(input)
+            }
+            const current = this.#getInput(input)
             if(this.errors === undefined || this.errors[input] === undefined){
-                this.removeHtmlError(current)
+                this.#removeHtmlError(current)
             }else{
                 if(Object.values(this.errors[input]).length > 0){
-                    this.setHtmlError(current, Object.values(this.errors[input])[0])
+                    this.#setHtmlError(current, Object.values(this.errors[input])[0])
                 }
             }
         }
@@ -186,7 +193,7 @@ export class FormValidator {
      * @param {HTMLElement} input  - Input HTML
      * @param {string} error - Error text
      */
-    setHtmlError(input, error) {
+    #setHtmlError(input, error) {
 
         if(input.classList.contains('is-invalid')){
             //const span = document.createElement('span')
@@ -236,7 +243,7 @@ export class FormValidator {
      * 
      * @param {HTMLElement} input  - Input HTML  
      */
-    removeHtmlError(input) {
+    #removeHtmlError(input) {
        
         if(input.classList.contains('was-validated')){
             return false
@@ -261,14 +268,14 @@ export class FormValidator {
     required(name) {
 
         if (this.data[name] === '' || this.data[name] === undefined) {
-            const currentInput = this.getInput(name).tagName.toLowerCase()
+            const currentInput = this.#getInput(name).tagName.toLowerCase()
             
             if(currentInput === 'select'){
 
-                this.setError(name, "required", this.textError("select", {name : name}))
+                this.#setError(name, "required", this.textError("select", {name : name}))
             } else {
 
-                this.setError(name, "required", this.textError('empty', {}))
+                this.#setError(name, "required", this.textError('empty', {}))
             }
 
         }
@@ -280,7 +287,10 @@ export class FormValidator {
     */
     email(name) {
         if (!(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/).test(this.data[name])) {
-            this.setError(name, "email", this.textError('email', {}))
+            this.#setError(name, "email", this.textError('email', {}))
+        }else{
+            const input = this.#getInput(name)
+            this.#removeHtmlError(input)
         }
     }
 
@@ -290,8 +300,15 @@ export class FormValidator {
      * @returns {Object} - Erreur nombre de caractéres insuffisants
     */
     min(name, min) {
-        if (this.data[name].trim().length < min) {
-            this.setError(name, "min", this.textError('min', { min: min }))
+        if (!parseInt(min)){
+            console.error(`The parameter min is not a number`)
+        }else{
+            if (this.data[name].trim().length < min) {
+                this.#setError(name, "min", this.textError('min', { min: min }))
+            }else{
+                const input = this.#getInput(name)
+                this.#removeHtmlError(input)
+            }
         }
     }
 
@@ -301,10 +318,28 @@ export class FormValidator {
      * @returns {Object} - Erreur nombre maximum de caractères atteint max : ${max} 
     */
     max(name, max) {
-        if (this.data[name].trim().length > max) {
-            console.log(name)
-            this.setError(name, "max", this.textError('max', { max: max }))
+        if (!parseInt(max)){
+            console.error(`The parameter max is not a number`)
+        }else{
+            if (this.data[name].trim().length > max) {
+                this.#setError(name, "max", this.textError('max', { max: max }))
+            }else{
+                const input = this.#getInput(name)
+                this.#removeHtmlError(input)
+            }
         }
+        
+    }
+
+    match(name, regex) {
+        const matches = this.data[name].match(regex.slice(1, -1))
+        if (!this.data[name].match(regex.slice(1, -1))) {
+            this.#setError(name, "match", this.textError('match', {}))
+        }else{
+            const input = this.#getInput(name)
+            this.#removeHtmlError(input)
+        }
+        
     }
 
     /**
@@ -315,7 +350,7 @@ export class FormValidator {
      * @param {string} error - texte de l'erreure 
 
      */
-    setError(name, type, error) {
+    #setError(name, type, error) {
         this.#FormValidatordebug ? console.log(`addError - name : ${name} | error : ${error}`) : null
         this.errors === undefined ? this.errors = new Object :  null
 
@@ -348,7 +383,8 @@ export class FormValidator {
                 email:  `Le champ email n'est pas un email valide`,
                 min:    `LE champ doit contenir au minimum ${options.min} caractères`,
                 max :   `Le champ ne peut pas contenir plus de ${options.max} caractères`,
-                select: `Veuillez sélectionner un ${options.name}`
+                select: `Veuillez sélectionner un ${options.name}`,
+                match:  `La valeur indiquée n'est pas valide`
             },
             en: {
                 undefined : 'Field invalid',
@@ -356,11 +392,13 @@ export class FormValidator {
                 email:  `The email is not valid`,
                 min:    `This field must contain at least ${options.min} characters`,
                 max :   `The field cannot contain more than ${options.max} characters`,
-                select: `Please select a valid ${options.name}`
+                select: `Please select a valid ${options.name}`,
+                match:  `The value is not valid`
             }
         }
+        locales[this.options.local] === undefined ? this.options.local = 'en' : null
         if(locales[this.options.local][type] === undefined){
-            console.error(`Aucun texte ${this.options.local} n'a été trouver pour l'erreur ${type}`)
+            console.error(`No locales.${this.options.local} text found for the error name : ${type}`)
             return locales[this.options.local][undefined]
         }
         return locales[this.options.local][type]
