@@ -1,3 +1,4 @@
+![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen.svg)
 # Vanilla JS - form validator
 
 A pure Javascript validator form replace [Jquery Validation](https://jqueryvalidation.org).
@@ -7,12 +8,12 @@ It allows to:
 - Get validation errors
 - Add validation errors under input not validated
     - To consider the language
- 
+
 ___
 
 ## Getting Started
 
-**Download** the script file clicking [here]()
+**Download** the script file clicking [here](https://github.com/caa-pjt/form-validator/tree/main/dist/formValidator.min.js)
 
 ## Creating instance
 ```html
@@ -25,41 +26,32 @@ ___
     <button type="submit" class="btn btn-primary">Send</button>
 </form>
 
-<script src="./src/app.js" type="module" async ></script>
+ <script src="./js/formValidatos.min.js"></script>
 
 <script type="text/javascript">
 
-    import { FormValidator } from "./modules/form-validator.js";
-
     document.querySelector('#form-id').addEventListener('submit', (event) => {
 
-    event.preventDefault()
-
-    const validator = new FormValidator({
-        form : event,
-
-        validationRules : {
-            firstName : "required|match:/^[A-z]{1}[a-z]+$/",
-            email :     'required|email',
-            textarea :  'required|min:2|max:5'
-        },
-        
-        local : "en"
+        event.preventDefault()
+        const validator = new FormValidator({
+            form : event,
+            validationRules : {
+                firstName : "required|match:/^[A-z]{1}[a-z]+$/",
+                email :     'required|email',
+                textarea :  'required|min:2|max:5'
+            },
+            local : "en"
+        })
+        if(!validator.isValide()){
+            validator.setErrors() // return erros to the view
+            console.log(validator.getErrors()) // return Object with errors
+        }else{
+            // Empty errors => send data to server
+            console.log(validator.getData())
+            console.log(JSON.stringify(data))
+            // await fetch(.....)
+        }
     })
-
-    if(!validator.isValide()){
-        
-        validator.setErrors() // return erros to the view
-        console.log(validator.getErrors()) // return Object with errors
-        
-    }else{
-
-        // Empty errors => send data to server
-
-        console.log(validator.getData())
-        console.log(JSON.stringify(data))
-        // await fetch(.....)
-    }
 </script>
 ```
 
