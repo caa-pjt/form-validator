@@ -190,13 +190,13 @@ export class FormValidator {
 
     /**
      * 
-     * @param {HTMLElement} input  - Input HTML
-     * @param {string} error - Error text
+     * @param {HTMLElement} input   - Input HTML
+     * @param {string} error        - Error text
      */
     #setHtmlError(input, error) {
 
         if(input.classList.contains('is-invalid')){
-            //const span = document.createElement('span')
+
             if (input.nextElementSibling.tagName === 'SPAN') {
                 input.nextElementSibling.innerText === error ? null : input.nextElementSibling.innerText = error
             }
@@ -262,8 +262,8 @@ export class FormValidator {
     ========================================== */
 
     /**
-     * @param  {string} name - nom de l'attribut de l'imput
-     * @returns {Object} - Erreur le champ est vide
+     * @param  {string} name        - attribute name of the field (input)
+     * @return {requestCallback}    this.#setError(...) - This field cannot be empty, please enter a message
     */
     required(name) {
 
@@ -282,8 +282,8 @@ export class FormValidator {
     }
 
     /**
-     * @param  {string} name - nom de l'imput  
-     * @returns {Object} - Erreur email invalide
+     * @param  {string} name    - attribute name of the field (input)  
+     * @return {requestCallback} this.#setError(...) - The email is not valid
     */
     email(name) {
         if (!(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/).test(this.data[name])) {
@@ -295,9 +295,9 @@ export class FormValidator {
     }
 
     /**
-     * @param  {string} name - nom de l'imput 
-     * @param  {number}  min - nombre de caractères minimum
-     * @returns {Object} - Erreur nombre de caractéres insuffisants
+     * @param  {string} name - attribute name of the field (input)
+     * @param  {number}  min - min length of characters
+     * @return {requestCallback} this.#setError(...) - Erreur nombre de caractéres insuffisants
     */
     min(name, min) {
         if (!parseInt(min)){
@@ -313,9 +313,9 @@ export class FormValidator {
     }
 
     /**
-     * @param  {string} name - nom de l'imput 
-     * @param  {number}  max - nombre de caractères minimum
-     * @returns {Object} - Erreur nombre maximum de caractères atteint max : ${max} 
+     * @param  {string} name - attribute name of the field (input)
+     * @param  {number}  max - max length of characters
+     * @return {requestCallback} this.#setError(...) - Erreur nombre maximum de caractères atteint max : ${max} 
     */
     max(name, max) {
         if (!parseInt(max)){
@@ -330,7 +330,12 @@ export class FormValidator {
         }
         
     }
-
+    /**
+     * 
+     * @param  {string} name    - attribute name of the field (input)
+     * @param {string} regex
+     * @return {requestCallback} this.#setError(...) - Erreur le champ est vide
+     */
     match(name, regex) {
         const matches = this.data[name].match(regex.slice(1, -1))
         if (!this.data[name].match(regex.slice(1, -1))) {
@@ -343,11 +348,11 @@ export class FormValidator {
     }
 
     /**
-     * Ajoute une erreur à l'objet this.errors
+     * Adds an error to this.errors object
      * 
-     * @param {string} name - nom de l'attribut de l'imput 
-     * @param {string} type - type de l'erreur à ajouter - required|min|max|email etc..
-     * @param {string} error - texte de l'erreure 
+     * @param {string} name     - attribute name of the field (input)
+     * @param {string} type     - type de l'erreur à ajouter - required|min|max|email etc..
+     * @param {string} error    - error text
 
      */
     #setError(name, type, error) {
@@ -368,9 +373,9 @@ export class FormValidator {
     ========================================== */
 
     /**
-     * @param {string} type - nom de l'imput 
-     * @param {Object} options - tableau d'options valeur à envoyer à la vue exemple : min|max|betewen
-     * @returns {string} - texte de l'erreure
+     * @param {string} type     - attribute name of the field (input)
+     * @param {Object} options  - array of options value to send to the view example : min|max|betewen
+     * @returns {string}        - error text
     */
     textError(type, options) {
 
@@ -388,7 +393,7 @@ export class FormValidator {
             },
             en: {
                 undefined : 'Field invalid',
-                empty:  `Please enter a message`,
+                empty:  `This field cannot be empty, please enter a message`,
                 email:  `The email is not valid`,
                 min:    `This field must contain at least ${options.min} characters`,
                 max :   `The field cannot contain more than ${options.max} characters`,
@@ -396,12 +401,16 @@ export class FormValidator {
                 match:  `The value is not valid`
             }
         }
-        locales[this.options.local] === undefined ? this.options.local = 'en' : null
-        if(locales[this.options.local][type] === undefined){
+
+        const localLowerCase = this.options.local.toLowerCase()
+
+        locales[localLowerCase] === undefined ? this.options.local = 'en' : null
+        
+        if(locales[localLowerCase][type] === undefined){
             console.error(`No locales.${this.options.local} text found for the error name : ${type}`)
-            return locales[this.options.local][undefined]
+            return locales[localLowerCase][undefined]
         }
-        return locales[this.options.local][type]
+        return locales[localLowerCase][type]
     }
 
 }
