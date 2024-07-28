@@ -1,7 +1,7 @@
 /**
 * @fileOverview Validates a form and returns: List of errors in JSON format || Validation errors directly below fields not validated
 * @author Carlos Antunes
-* @version 1.0.0
+* @version 1.0.1
 */
 
 export class FormValidator {
@@ -15,7 +15,7 @@ export class FormValidator {
     * Default options
     */
     options = {
-        form : [],
+        form : null,
         local : "en"
     }
     
@@ -31,41 +31,46 @@ export class FormValidator {
         
         
         this.options = Object.assign({}, this.options, options)
-        
-        this.#formData()
-        
     }
-    
+
     /**
-    * Create formData Objet
-    * 
-    * @returns {object[]|error} - throws an error if no data is retrieved
-    */
-    #formData() {
-        
-        if (this.options.form.length === 0 || this.options.form.target != undefined) {
-            const formData = Object.fromEntries(new FormData(this.options.form.target).entries())
-            this.data = formData
-            
-            if(this.options.form.currentTarget.length === 0){
-                console.error(`No FormData imputs detected !? 
-                Please send the form with imputs on the objet options.form`)
-            }else{
-                
-                /**
-                * Array[] 
-                * Add data imputs in form to the this.inputs variable
-                */
-                for (let i = 0; i < this.options.form.currentTarget.length; i++) {
-                    this.inputs.push(this.options.form.currentTarget[i])
-                }
-                
-                
-                this.#validate()
-            }
-            
+     * Validate the form
+     *
+     * @param {HTMLFormElement} formElement - The form element to validate
+     */
+    validate(formElement) {
+        this.errors = {};  // Reset errors before each validation
+        this.inputs = [];  // Reset inputs before each validation
+        this.#formData(formElement);
+
+    }
+
+    /**
+     * Create formData Object
+     *
+     * @param {HTMLFormElement} formElement - The form element to extract data from
+     * @returns {object[]|error|boolean} - throws an error if no data is retrieved
+     */
+    #formData(formElement) {
+        if (!formElement || !(formElement instanceof HTMLFormElement)) {
+            console.error(`The provided element is not a valid HTMLFormElement.`);
+            return false;
+        }
+
+        const formData = Object.fromEntries(new FormData(formElement).entries());
+        this.data = formData;
+
+        if (formElement.elements.length === 0) {
+            console.error(`No FormData inputs detected! Please ensure the form contains inputs.`);
         } else {
-            console.error(`The objet options.form is empty or undefined. Please insert values in the objetc.`)
+            /**
+             * Array[]
+             * Add data imputs in form to the this.inputs variable
+             */
+            for (let i = 0; i < formElement.elements.length; i++) {
+                this.inputs.push(formElement.elements[i]);
+            }
+            this.#validateData();
         }
     }
     
@@ -77,15 +82,13 @@ export class FormValidator {
     * @property {string} rules                         - Validation rules separated by separator pipe (|)
     *  - Example: {'email' : 'required|email','textarea' : 'required|min:10|max:255'}
     */
-    #validate() {
-        
+    #validateData() {
         const dataAndRules = this.options.validationRules
         
         for (const input in dataAndRules) {
-            
-            if(this.data[input] === undefined){
-                console.error(`l'imput name: [${input}] n'existe pas`)
-            }else{
+            if (this.data[input] === undefined) {
+                console.error(`Input name: [${input}] does not exist`)
+            } else {
                 const rules = dataAndRules[input].split('|')
                 this.#rulesValidator(input, rules)
             }
@@ -108,11 +111,6 @@ export class FormValidator {
                 const func = rule[0]
                 const param = rule[1]
                 this[func](input, param)
-                /* try {
-                    this[func](input, param)
-                }catch (e){
-                    console.error(`(${func}) ${e.name} : ${e.message}`)
-                } */
             } else {
                 this[rule](input)
             }
@@ -128,7 +126,7 @@ export class FormValidator {
     * @returns {HTMLHtmlElement}   - Input
     */
     #getInput(AttrName){
-        return this.inputs.find(input => input.getAttribute('name') == AttrName )
+        return this.inputs.find(input => input.getAttribute('name') === AttrName )
     }
     
     /**
@@ -144,11 +142,7 @@ export class FormValidator {
     * @returns - If empty errors return true
     */
     isValide() {
-        if (this.errors != null || this.errors != undefined) {
-            return false
-        } else {
-            return true
-        }
+        return !(this.errors && Object.keys(this.errors).length > 0);
     }
     
     /**
@@ -165,14 +159,6 @@ export class FormValidator {
     * @returns {HTMLElement} Modify HTML (errors)
     */
     setErrors() {
-        /*  for in this.data
-        if (this.errors[current]) === unddefined 
-        Remove error
-        else 
-        Add is-invalid to the input
-        create span data-id = input.datasetname
-        
-        */
         for(const input in this.data) {
             if (this.#FormValidatordebug) {
                 console.log(input)
@@ -189,7 +175,7 @@ export class FormValidator {
     }
     
     /**
-    * 
+    * Add or remove errors from the HTML form (dispatcher)
     * @param {HTMLElement} input   - Input HTML
     * @param {string} error        - Error text
     */
@@ -207,11 +193,11 @@ export class FormValidator {
         input.classList.contains('is-invalid') ? null : input.classList.add('is-invalid')
         
         if (input.nextElementSibling === null) {
-            const span = this.#htmlErro(input, error)
+            const span = this.#htmlError(input, error)
             input.parentElement.appendChild(span)
             
-        }else if (input.nextElementSibling.tagName != 'SPAN'){
-            const span = this.#htmlErro(input, error)
+        }else if (input.nextElementSibling.tagName !== 'SPAN'){
+            const span = this.#htmlError(input, error)
             input.nextSibling.before(span)
         }
         
@@ -227,14 +213,14 @@ export class FormValidator {
     /**
     * 
     * @param {HTMLElement} input 
-    * @param {string} meassage 
-    * @returns - <span data-input-name="{input.attr.name}" class="help-block">{meassage}</span>
+    * @param {string} message
+    * @returns - <span data-input-name="{input.attr.name}" class="help-block">{message}</span>
     */
-    #htmlErro(input, meassage){
+    #htmlError(input, message){
         const span = document.createElement('span')
         span.dataset.inputName = input.getAttribute('name')
         span.classList.add('help-block')
-        span.innerText = meassage
+        span.innerText = message
         
         return span
     }
