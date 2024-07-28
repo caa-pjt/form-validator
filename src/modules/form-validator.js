@@ -1,12 +1,12 @@
 /**
 * @fileOverview Validates a form and returns: List of errors in JSON format || Validation errors directly below fields not validated
 * @author Carlos Antunes
-* @version 1.0.1
+* @version 1.0.2
 */
 
 export class FormValidator {
     
-    #FormValidatordebug = false
+    #FormValidatorDebug = false
     
     /* List of fields (inputs) in the form */
     inputs = []
@@ -16,21 +16,22 @@ export class FormValidator {
     */
     options = {
         form : null,
-        local : "en"
+        local : "en",
+        observeOnInput : false,
     }
     
     /**
-    * @param {object} - Options
-    * @property {SubmitEvent} options.form          - form : event (form sent by the event)
-    * @property {Object} options.validationRules    - validationRules : { attrInputName : rules separator pipe (|) }
-    *                                               - Example: {'email' : 'required|email','textarea' : 'required|min:10|max:255'}
-    * @property {string|undefined} options.local    - local : "en" 
-    *                                               - (two digites lowercase. Default value "en")
-    */
+     * @property {SubmitEvent} options.form          - form : event (form sent by the event)
+     * @property {Object} options.validationRules    - validationRules : { attrInputName : rules separator pipe (|) }
+     *                                               - Example: {'email' : 'required|email','textarea' : 'required|min:10|max:255'}
+     * @property {string|undefined} options.local    - local : "en"
+     *                                               - (two digits lowercase. Default value "en")
+     * @param options
+     */
     constructor(options = {}) {
-        
-        
-        this.options = Object.assign({}, this.options, options)
+        this.options = Object.assign({}, this.options, options);
+        this.errors = {};
+        this.debounceDelay = 400; // Default debounce delay in milliseconds
     }
 
     /**
@@ -43,6 +44,10 @@ export class FormValidator {
         this.inputs = [];  // Reset inputs before each validation
         this.#formData(formElement);
 
+        // Add input listeners if observeOnInput is true
+        if (this.options.observeOnInput) {
+            this.#addInputListeners();
+        }
     }
 
     /**
@@ -73,15 +78,81 @@ export class FormValidator {
             this.#validateData();
         }
     }
-    
+
     /**
-    * Add an error according to the validation rules
-    * 
-    * @property {object[]} dataAndRules                - Object containing the list of fields and validation rules
-    * @property {string<inputAttrName>} object.name    - Name of the name attribute of the input 
-    * @property {string} rules                         - Validation rules separated by separator pipe (|)
-    *  - Example: {'email' : 'required|email','textarea' : 'required|min:10|max:255'}
-    */
+     * Add input listeners to the form inputs
+     * @returns {void} - Add event listeners to the form inputs
+     */
+    #addInputListeners() {
+        this.inputs.forEach(input => {
+            input.addEventListener('input', this.#debounce(() => {
+                this.#updateData(input);
+                this.#validateSingleInput(input);
+            }, this.debounceDelay));
+           /* input.addEventListener('blur', () => {
+                this.#validateSingleInput(input);
+            });
+
+            */
+        });
+    }
+
+    /**
+     * Debounce function to limit the number of times a function is called
+     * @param callback - The function to call
+     * @param delay - The delay in milliseconds
+     * @returns {(function(): void)|*} - The debounced function
+     */
+    #debounce(callback, delay) {
+        let timer;
+        return function() {
+            const args = arguments;
+            const context = this;
+            clearTimeout(timer);
+            timer = setTimeout(function() {
+                callback.apply(context, args);
+            }, delay);
+        }
+    }
+
+    /**
+     * Update the data object with the input value
+     *
+     * @param input - The input element to update
+     */
+    #updateData(input) {
+        const inputName = input.getAttribute('name');
+        if (input.type === 'checkbox') {
+            this.data[inputName] = input.checked ? input.value : '';
+        } else {
+            this.data[inputName] = input.value;
+        }
+    }
+
+    /**
+     * Validate a single input field based on the validation rules
+     *
+     * @param input - The input element to validate
+     * @returns {void}
+     */
+    #validateSingleInput(input) {
+        const inputName = input.getAttribute('name');
+        const rules = this.options.validationRules[inputName]?.split('|') || [];
+
+        this.errors[inputName] = {};  // Reset errors for this input
+
+        this.#rulesValidator(inputName, rules);
+        this.setErrors();
+    }
+
+    /**
+     * Add an error according to the validation rules
+     *
+     * @property {object[]} dataAndRules                - Object containing the list of fields and validation rules
+     * @property {string<inputAttrName>} object.name    - Name of the name attribute of the input
+     * @property {string} rules                         - Validation rules separated by separator pipe (|)
+     *  - Example: {'email' : 'required|email','textarea' : 'required|min:10|max:255'}
+     */
     #validateData() {
         const dataAndRules = this.options.validationRules
         
@@ -114,7 +185,7 @@ export class FormValidator {
             } else {
                 this[rule](input)
             }
-            if (this.#FormValidatordebug) {
+            if (this.#FormValidatorDebug) {
                 console.log(input)
             }
         }
@@ -160,7 +231,7 @@ export class FormValidator {
     */
     setErrors() {
         for(const input in this.data) {
-            if (this.#FormValidatordebug) {
+            if (this.#FormValidatorDebug) {
                 console.log(input)
             }
             const current = this.#getInput(input)
@@ -169,6 +240,8 @@ export class FormValidator {
             }else{
                 if(Object.values(this.errors[input]).length > 0){
                     this.#setHtmlError(current, Object.values(this.errors[input])[0])
+                } else {
+                    this.#removeHtmlError(current);
                 }
             }
         }
@@ -201,13 +274,13 @@ export class FormValidator {
             input.nextSibling.before(span)
         }
         
-        if (input.nextElementSibling.dataset.inputName ===  input.getAttribute('name')) {
+        if (input.nextElementSibling.dataset.inputName === input.getAttribute('name')) {
             const span = input.nextElementSibling
             span.innerText = ''
             span.innerText = error
         }
-        
-        this.#FormValidatordebug ?  console.log(`Add error from inputName : ${ input.getAttribute('name') }`) : null
+
+        this.#FormValidatorDebug ? console.log(`Add error from inputName : ${input.getAttribute('name')}`) : null
     }
     
     /**
@@ -237,8 +310,8 @@ export class FormValidator {
         
         input.classList.contains('is-invalid') ? input.classList.remove('is-invalid') : null
         input.classList.contains('was-validated') ? null : input.classList.add('was-validated')
-        input.nextElementSibling.tagName == 'SPAN' ? input.nextElementSibling.remove() : null
-        
+        input.nextElementSibling?.tagName === 'SPAN' ? input.nextElementSibling.remove() : null
+
     }
     
     /* ========================================
@@ -255,15 +328,14 @@ export class FormValidator {
         
         if (this.data[name] === '' || this.data[name] === undefined) {
             const currentInput = this.#getInput(name).tagName.toLowerCase()
-            
-            if(currentInput === 'select'){
-                
+            if (currentInput === 'select') {
                 this.#setError(name, "required", this.textError("select", {name : name}))
             } else {
-                
                 this.#setError(name, "required", this.textError('empty', {}))
             }
-            
+        } else {
+            const input = this.#getInput(name)
+            this.#removeHtmlError(input)
         }
     }
     
@@ -323,7 +395,6 @@ export class FormValidator {
     * @return {requestCallback} this.#setError(...) - Erreur le champ est vide
     */
     match(name, regex) {
-        const matches = this.data[name].match(regex.slice(1, -1))
         if (!this.data[name].match(regex.slice(1, -1))) {
             this.#setError(name, "match", this.textError('match', {}))
         }else{
@@ -342,11 +413,11 @@ export class FormValidator {
     
     */
     #setError(name, type, error) {
-        this.#FormValidatordebug ? console.log(`addError - name : ${name} | error : ${error}`) : null
-        this.errors === undefined ? this.errors = new Object :  null
-        
-        this.errors[name] === undefined ? this.errors[name] = new Object : null
-        
+        this.#FormValidatorDebug ? console.log(`addError - name : ${name} | error : ${error}`) : null
+        this.errors === undefined ? this.errors = {} : null
+
+        this.errors[name] === undefined ? this.errors[name] = {} : null
+
         this.errors[name][type] = error
         
     }
@@ -364,36 +435,36 @@ export class FormValidator {
     * @returns {string}        - error text
     */
     textError(type, options) {
-        
-        this.#FormValidatordebug ? console.log(options) : null
+
+        this.#FormValidatorDebug ? console.log(options) : null
         
         const locales = {
             fr: {
-                undefined : 'Entrée invalide',
-                empty:  `Ce champ ne peux pas être vide`,
-                email:  `Le champ email n'est pas un email valide`,
-                min:    `LE champ doit contenir au minimum ${options.min} caractères`,
-                max :   `Le champ ne peut pas contenir plus de ${options.max} caractères`,
+                undefined: 'Entrée invalide',
+                empty: `Ce champ ne peut pas être vide`,
+                email: `Le champ email n'est pas un email valide`,
+                min: `Le champ doit contenir au minimum ${options.min} caractères`,
+                max: `Le champ ne peut pas contenir plus de ${options.max} caractères`,
                 select: `Veuillez sélectionner un ${options.name}`,
-                match:  `La valeur indiquée n'est pas valide`
+                match: `La valeur indiquée n'est pas valide`
             },
             en: {
-                undefined : 'Field invalid',
-                empty:  `This field cannot be empty, please enter a message`,
-                email:  `The email is not valid`,
-                min:    `This field must contain at least ${options.min} characters`,
-                max :   `The field cannot contain more than ${options.max} characters`,
+                undefined: 'Field invalid',
+                empty: `This field cannot be empty, please enter a message`,
+                email: `The email is not valid`,
+                min: `This field must contain at least ${options.min} characters`,
+                max: `The field cannot contain more than ${options.max} characters`,
                 select: `Please select a valid ${options.name}`,
-                match:  `The value is not valid`
+                match: `The value is not valid`
             }
-        }
-        
+        };
+
         const localLowerCase = this.options.local.toLowerCase()
         
         locales[localLowerCase] === undefined ? this.options.local = 'en' : null
-        
-        if(locales[localLowerCase][type] === undefined){
-            console.error(`No locales.${this.options.local} text found for the error name : ${type}`)
+
+        if (locales[localLowerCase][type] === undefined) {
+            console.error(`No locales.${this.options.local} text found for the error name: ${type}`)
             return locales[localLowerCase][undefined]
         }
         return locales[localLowerCase][type]
