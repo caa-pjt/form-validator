@@ -171,9 +171,12 @@ select.is-invalid, select.was-validated{
 }
 
 .help-block {
-    color: var(--red);
-    font-size: 80%;
-    text-align: start;
+  color: var(--red);
+  font-size: 80%;
+  text-align: start;
+  position: relative;
+  top: -18px;
+  padding-left: 5px;
 }
 
 .was-validated, .validated {
