@@ -3,9 +3,11 @@
 
 A pure Javascript validator form replace [Jquery Validation](https://jqueryvalidation.org).
 
-It allows to:
-- validate an input with preexisting rules or custom rules
-- Get validation errors
+It allows you to:
+- Validate input fields with pre-existing or custom rules
+- Retrieve validation errors
+- Display validation errors below unvalidated fields
+- Support multiple languages for error messages
 - Add validation errors under input not validated
     - To consider the language
 
@@ -15,56 +17,110 @@ ___
 
 **Download** the script file clicking [here](https://github.com/caa-pjt/form-validator/tree/main/dist/formValidator.min.js)
 
-## Creating instance
-```html
+### Including in Your Project
 
-<link rel="stylesheet" href="./src/style.css">
+Include the following in your HTML:
+```html
+<link href="./src/style.css" rel="stylesheet">
 
 <form id="form-id">
-    <input type="text" name="firstName"placeholder="First name">
-    <input type="email" name="email" placeholder="john@doe.com">
-    <button type="submit" class="btn btn-primary">Send</button>
+  <input type="text" name="firstName" placeholder="First name">
+  <input type="email" name="email" placeholder="john@doe.com">
+  <textarea name="textarea" placeholder="Message" rows="10"></textarea>
+  <button type="submit" class="btn btn-primary">Send</button>
 </form>
 
- <script src="./js/formValidatos.min.js"></script>
-
-<script type="text/javascript">
-
-    document.querySelector('#form-id').addEventListener('submit', (event) => {
-
-        event.preventDefault()
-        const validator = new FormValidator({
-            form : event,
-            validationRules : {
-                firstName : "required|match:/^[A-z]{1}[a-z]+$/",
-                email :     'required|email',
-                textarea :  'required|min:2|max:5'
-            },
-            local : "en"
-        })
-        if(!validator.isValide()){
-            validator.setErrors() // return erros to the view
-            console.log(validator.getErrors()) // return Object with errors
-        }else{
-            // Empty errors => send data to server
-            console.log(validator.getData())
-            console.log(JSON.stringify(data))
-            // await fetch(.....)
-        }
-    })
-</script>
+<script src="./src/app.js" type="module" async></script>
 ```
+### Creating an Instance
+
+Create an instance of FormValidator and configure it as follows:
+```javascript
+import { FormValidator } from "./modules/form-validator.js";
+
+class App {
+  constructor() {
+    this.form = document.querySelector('#form-id');
+    this.validator = new FormValidator({
+      form: this.form,
+      validationRules: {
+        firstName: "required|match:/^[A-z]{1}[a-z]+$/",
+        lastName: "required",
+        email: 'required|email',
+        textarea: 'required|min:2|max:5'
+      },
+      local: "fr", // Options: "en", "fr"
+      observeOnInput: true
+    });
+  }
+
+  init() {
+    this.form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      this.validator.validate(event.target);
+
+      if (this.validator.isValide()) {
+        const data = this.validator.getData();
+        console.log(data);
+        console.log(JSON.stringify(data));
+        // Send data to server
+      } else {
+        this.validator.setErrors();
+        const errors = this.validator.getErrors();
+        console.log(errors);
+      }
+    });
+  }
+}
+
+const myApp = new App();
+myApp.init();
+
+```
+
+## Constructor Options
+
+The `FormValidator` constructor accepts an options object with the following properties:
+
+- form: HTMLElement
+  The form element to be validated. This is a required option.
+
+- `validationRules`: Object 
+ An object defining the validation rules for each form field. Each key corresponds to a field name, and the value is  a string with validation rules separated by pipes (|). Supported rules include:
+- `required`: Field must not be empty
+- `email`: Field must be a valid email address
+- `min:n`: Field must have at least n characters
+- `max:n`: Field must have at most n characters
+- `match:pattern`: Field value must match the given regular expression pattern
+- - `local`: String
+    The language for error messages. Supported values are "en" for English and "fr" for French. 
+    You can add another language by modifying the local.js file in the modules folder.
+  - `en`: English
+  - `fr`: French
+  - `observeOnInput`: Boolean
+    If true, the validator will validate fields on input events. If false, it will only validate on submit events. Default is false.
 
 ### Validation rules (required)
 
-The rules should be an object passed by in **options** at the follow format:
+Validation rules are defined in the validationRules option, following this format:
 ```javascript 
 validationRules : {
     fieldName : "ruleName|RuleName:option|RuleName:option|...",
     fieldName : "ruleName|ruleName|..."
 }
 ```
-#### Validation rules exemple:
+
+Available Validation Rules
+
+| Rule Name       | Rule option          | Description                    |
+|-----------------|----------------------|--------------------------------|
+| `required`      | -                    | Ensures the field is not empty |
+| `email`         | -                    | Validates email forma          |
+| `max:int`       | **integer** [number] | Maximum length of characters   |
+| `min:int`       | **integer** [number] | Minimum length of characters   |
+| `match:pattern` | **string**  [patern] | Costum rule validation         |
+
+#### Validation rules exemple
 ```javascript
 validationRules : {
     firstName : "match:/^[A-z]{1}[a-z]+$/", // match:preg_match
@@ -73,17 +129,6 @@ validationRules : {
     ...
 }
 ```
-
-The default rules avaiable are:
-
-|Rule Name       |Rule option              |Description              |
-|----------------|-------------------------|-------------------------|
-|`required`      | -                       | Not empty value         |
-|`email`         | -                       | Verify email format     |
-|`max:int`       | **integer** [number]    | Max value length        |
-|`min:int`       | **integer** [number]    | Min value length        |
-|`match:pattern` | **string**  [patern]    | Costum rule validation  |
-
 
 ## Methodes
 
@@ -95,12 +140,9 @@ The default rules avaiable are:
 ```
 
 > Name: **setErrors**
->
-> After a submission, the **getErrors()** method returns validation errors under unvalidated fields.
+> 
+> After a submit, the **setErrors()** method displays the error messages below the unvalidated fields.
 
-```javascript
-    validator.setErrors()
-```
 ![validaed field](/src/images/validated_field.PNG)
 ![unvalidated field](/src/images/unvalidated_field.PNG)
 
@@ -129,3 +171,44 @@ validator.getErrors()
     }
 }
 ```
+
+## Example of Form Integration
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Form Validator</title>
+    <link rel="stylesheet" href="./src/style.css">
+    <script src="./src/app.js" type="module" async></script>
+</head>
+<body>
+
+    <form method="GET" action="#" class="form" id="form-id">
+        <h1>JavaScript - Form Validator</h1>
+        <label for="firstName">First name</label>
+        <input type="text" name="firstName" id="firstName" placeholder="First name">
+        <label for="lastName">Last name</label>
+        <input type="text" name="lastName" id="lastName" placeholder="Last name">
+        <label for="email">Email</label>
+        <input type="text" name="email" placeholder="john@doe.com" id="email">
+        <label for="textarea">Message</label>
+        <textarea name="textarea" placeholder="Message" rows="10" id="textarea"></textarea>
+        <button type="submit" class="btn btn-primary">Send</button>
+    </form>
+
+    <script src="./src/app.js" type="module" async></script>
+</body>
+</html>
+```
+
+## Contributing
+
+Feel free to contribute by submitting issues and pull requests. For more detailed documentation, see the source code or contact the maintainers.
+
+License
+
+This project is licensed under the MIT License - see the [LICENSE](https://fr.wikipedia.org/wiki/Licence_MIT) file for details.
