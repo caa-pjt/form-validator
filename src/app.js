@@ -28,7 +28,6 @@ class App {
                 console.log(JSON.stringify(data))
                 // Envoi des données au serveur
             }else{
-                this.validator.setErrors()
                 const errors = this.validator.getErrors()
                 console.log(errors)
             }

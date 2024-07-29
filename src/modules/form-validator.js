@@ -1,8 +1,31 @@
 /**
-* @fileOverview Validates a form and returns: List of errors in JSON format || Validation errors directly below fields not validated
-* @author Carlos Antunes
-* @version 1.0.2
-*/
+ * @fileOverview Validates a form and returns List of errors in JSON format || Validation errors directly below
+ * fields not validated
+ * @version 1.0.2
+ * @changelog
+ * - [1.2.0] - 2024-07-29
+ *   - Ajout de la méthode `#removeInputListeners` pour supprimer les listeners d'événements `input` après validation réussie.
+ *   - Mise à jour de la méthode `isValide()` pour supprimer les listeners après validation réussie.
+ *   - Correction de la gestion des erreurs pour les éléments `input` lorsque les erreurs sont réinitialisées.
+ *   - Correction de la méthode `#setError` pour initialiser les erreurs si elles sont `undefined`.
+ *   - Correction de la méthode `#formData` pour vérifier si le formulaire contient des éléments avant de continuer.
+ *   - Correction de la méthode `#addInputListeners` pour vérifier si le formulaire contient des éléments avant de continuer.
+ *   - Correction de la méthode `#updateData` pour vérifier si l'élément `input` est une case à cocher.
+ *   - Correction de la méthode `#validateSingleInput` pour réinitialiser les erreurs pour chaque champ avant la validation.
+ *   - Déplacement des messages d'erreur dans un fichier séparé `locales.js`.
+ *   - Méthode `validate` appel maintenant `setErrors` automatiquement après la validation.
+ * - [1.1.0] - 2024-07-15
+ *   - Ajout de la méthode `#removeHtmlError` pour supprimer les erreurs des éléments `input` du formulaire.
+ *   - changée signature de la classe `FormValidator` pour initialiser les erreurs et les champs avant chaque validation.
+ *   - Ajout de la méthode `#addInputListeners` pour ajouter des listeners d'événements `input` aux éléments `input` du formulaire.
+ *   - Re factorisation de la méthode `validate` pour inclure la logique de gestion des listeners d'événements `input`.
+ *   - Correction de l'initialisation des erreurs et des inputs avant chaque validation.
+ * - [1.0.0] - 2024-07-01
+ *   - Première version de `FormValidator` avec validation des champs du formulaire et gestion des erreurs.
+ *   - Méthodes de validation pour les règles : `required`, `email`, `min`, `max`, et `match`.
+ */
+
+import locales from './locales.js';
 
 export class FormValidator {
     
@@ -34,10 +57,11 @@ export class FormValidator {
         this.options = Object.assign({}, this.options, options);
         this.errors = {};
         this.debounceDelay = 400; // Default debounce delay in milliseconds
+        this.inputListeners = new Map(); // Map to store input listeners
     }
 
     /**
-     * Validate the form
+     * Validate the form and set errors if any are found
      *
      * @param {HTMLFormElement} formElement - The form element to validate
      */
@@ -51,6 +75,9 @@ export class FormValidator {
         if (this.options.observeOnInput) {
             this.#addInputListeners();
         }
+
+        // Automatically set errors after validation
+        this.setErrors();
     }
 
     /**
@@ -89,16 +116,25 @@ export class FormValidator {
      */
     #addInputListeners() {
         this.inputs.forEach(input => {
-            input.addEventListener('input', this.#debounce(() => {
+            const listener = this.#debounce(() => {
                 this.#updateData(input);
                 this.#validateSingleInput(input);
-            }, this.debounceDelay));
-           /* input.addEventListener('blur', () => {
-                this.#validateSingleInput(input);
-            });
+            }, this.debounceDelay);
 
-            */
+            input.addEventListener('input', listener);
+            this.inputListeners.set(input, listener); // Add listener to the map
         });
+    }
+
+    /**
+     * Remove input listeners from the form inputs
+     * @returns {void} - Remove event listeners from the form inputs
+     */
+    #removeInputListeners() {
+        this.inputListeners.forEach((listener, input) => {
+            input.removeEventListener('input', listener);
+        });
+        this.inputListeners.clear(); // Clear the map
     }
 
     /**
@@ -213,11 +249,16 @@ export class FormValidator {
     }
     
     /**
-    * 
+    * Check if the form is valid
+    *
     * @returns - If empty errors return true
     */
     isValide() {
-        return !(this.errors && Object.keys(this.errors).length > 0);
+        const isValid = !(this.errors && Object.keys(this.errors).length > 0);
+        if (isValid) {
+            this.#removeInputListeners(); // Remove input listeners if no errors
+        }
+        return isValid;
     }
     
     /**
@@ -291,7 +332,7 @@ export class FormValidator {
     * 
     * @param {HTMLElement} input 
     * @param {string} message
-    * @returns - <span data-input-name="{input.attr.name}" class="help-block">{message}</span>
+    * @returns <span data-input-name="{input.attr.name}" class="help-block">{message}</span>
     */
     #htmlError(input, message){
         const span = document.createElement('span')
@@ -333,9 +374,9 @@ export class FormValidator {
         if (this.data[name] === '' || this.data[name] === undefined) {
             const currentInput = this.#getInput(name).tagName.toLowerCase()
             if (currentInput === 'select') {
-                this.#setError(name, "required", this.textError("select", {name : name}))
+                this.#setError(name, "required", this.#errorMessages("select", {name : name}))
             } else {
-                this.#setError(name, "required", this.textError('empty', {}))
+                this.#setError(name, "required", this.#errorMessages('empty', {}))
             }
         } else {
             const input = this.#getInput(name)
@@ -349,7 +390,7 @@ export class FormValidator {
     */
     email(name) {
         if (!(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/).test(this.data[name])) {
-            this.#setError(name, "email", this.textError('email', {}))
+            this.#setError(name, "email", this.#errorMessages('email', {}))
         }else{
             const input = this.#getInput(name)
             this.#removeHtmlError(input)
@@ -366,7 +407,7 @@ export class FormValidator {
             console.error(`The parameter min is not a number`)
         }else{
             if (this.data[name].trim().length < min) {
-                this.#setError(name, "min", this.textError('min', { min: min }))
+                this.#setError(name, "min", this.#errorMessages('min', { min: min }))
             }else{
                 const input = this.#getInput(name)
                 this.#removeHtmlError(input)
@@ -384,7 +425,7 @@ export class FormValidator {
             console.error(`The parameter max is not a number`)
         }else{
             if (this.data[name].trim().length > max) {
-                this.#setError(name, "max", this.textError('max', { max: max }))
+                this.#setError(name, "max", this.#errorMessages('max', { max: max }))
             }else{
                 const input = this.#getInput(name)
                 this.#removeHtmlError(input)
@@ -400,7 +441,7 @@ export class FormValidator {
     */
     match(name, regex) {
         if (!this.data[name].match(regex.slice(1, -1))) {
-            this.#setError(name, "match", this.textError('match', {}))
+            this.#setError(name, "match", this.#errorMessages('match', {}))
         }else{
             const input = this.#getInput(name)
             this.#removeHtmlError(input)
@@ -438,40 +479,28 @@ export class FormValidator {
     * @param {Object} options  - array of options value to send to the view example : min|max|betewen
     * @returns {string}        - error text
     */
-    textError(type, options) {
+    #errorMessages(type, options) {
+        const localLowerCase = this.options.local.toLowerCase();
 
-        this.#FormValidatorDebug ? console.log(options) : null
-        
-        const locales = {
-            fr: {
-                undefined: 'Entrée invalide',
-                empty: `Ce champ ne peut pas être vide`,
-                email: `Le champ email n'est pas un email valide`,
-                min: `Le champ doit contenir au minimum ${options.min} caractères`,
-                max: `Le champ ne peut pas contenir plus de ${options.max} caractères`,
-                select: `Veuillez sélectionner un ${options.name}`,
-                match: `La valeur indiquée n'est pas valide`
-            },
-            en: {
-                undefined: 'Field invalid',
-                empty: `This field cannot be empty, please enter a message`,
-                email: `The email is not valid`,
-                min: `This field must contain at least ${options.min} characters`,
-                max: `The field cannot contain more than ${options.max} characters`,
-                select: `Please select a valid ${options.name}`,
-                match: `The value is not valid`
-            }
-        };
-
-        const localLowerCase = this.options.local.toLowerCase()
-        
-        locales[localLowerCase] === undefined ? this.options.local = 'en' : null
-
-        if (locales[localLowerCase][type] === undefined) {
-            console.error(`No locales.${this.options.local} text found for the error name: ${type}`)
-            return locales[localLowerCase][undefined]
+        if (!locales[localLowerCase]) {
+            console.error(`Locale '${this.options.local}' not found. Defaulting to 'en'.`);
+            this.options.local = 'en';
         }
-        return locales[localLowerCase][type]
+
+        const localeMessages = locales[localLowerCase] || locales['en'];
+
+        if (!localeMessages[type]) {
+            console.error(`No text found for error type '${type}' in locale '${this.options.local}'`);
+            return localeMessages['undefined'];
+        }
+
+        let message = localeMessages[type];
+        // Replace placeholders in the message with actual values from options
+        for (const [key, value] of Object.entries(options)) {
+            message = message.replace(`{${key}}`, value);
+        }
+
+        return message;
     }
     
 }
