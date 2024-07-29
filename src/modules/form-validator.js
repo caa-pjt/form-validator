@@ -10,6 +10,8 @@ export class FormValidator {
     
     /* List of fields (inputs) in the form */
     inputs = []
+    // Object containing the data of the form
+    inputElements = {}
     
     /**
     * Default options
@@ -42,6 +44,7 @@ export class FormValidator {
     validate(formElement) {
         this.errors = {};  // Reset errors before each validation
         this.inputs = [];  // Reset inputs before each validation
+        this.inputElements = {}; // Reset input elements
         this.#formData(formElement);
 
         // Add input listeners if observeOnInput is true
@@ -58,22 +61,23 @@ export class FormValidator {
      */
     #formData(formElement) {
         if (!formElement || !(formElement instanceof HTMLFormElement)) {
-            console.error(`The provided element is not a valid HTMLFormElement.`);
+            console.error(`The provided element is not a valid HTMLFormElement.`)
             return false;
         }
 
-        const formData = Object.fromEntries(new FormData(formElement).entries());
+        const formData = Object.fromEntries(new FormData(formElement).entries())
         this.data = formData;
 
         if (formElement.elements.length === 0) {
-            console.error(`No FormData inputs detected! Please ensure the form contains inputs.`);
+            console.error(`No FormData inputs detected! Please ensure the form contains inputs.`)
         } else {
-            /**
-             * Array[]
-             * Add data imputs in form to the this.inputs variable
-             */
             for (let i = 0; i < formElement.elements.length; i++) {
-                this.inputs.push(formElement.elements[i]);
+                const input = formElement.elements[i];
+                this.inputs.push(input);
+                const inputName = input.getAttribute('name');
+                if (inputName) {
+                    this.inputElements[inputName] = input; // Add input element to inputElements object
+                }
             }
             this.#validateData();
         }
@@ -197,7 +201,7 @@ export class FormValidator {
     * @returns {HTMLHtmlElement}   - Input
     */
     #getInput(AttrName){
-        return this.inputs.find(input => input.getAttribute('name') === AttrName )
+        return this.inputElements[AttrName];
     }
     
     /**
